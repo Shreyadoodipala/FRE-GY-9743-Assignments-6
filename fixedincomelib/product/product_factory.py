@@ -42,7 +42,18 @@ class ProductFactory:
     ) -> ProductRFRSwap:
 
         #TODO
-        pass
+        first, second = cls._tokenize_axis1(axis1)
+        bdc = data_convention.business_day_convention
+        holidays = data_convention.holiday_convention
+        effective_date, term_or_termination_date = cls._swap_dates(
+            value_date, first, second, bdc, holidays)
+        return ProductRFRSwap(
+            effective_date, term_or_termination_date, data_convention.payment_offset,
+            data_convention.index_str, values,
+            PayOrReceive.from_string(kwargs.get("pay_or_rec", "receive")),
+            kwargs.get("notional", 1e4), data_convention.acc_period, data_convention.acc_basis,
+            None, bdc, holidays, 0.0, data_convention.compounding_method,
+        )
 
     @classmethod
     def create_overnight_index_basis_swap(
@@ -55,7 +66,18 @@ class ProductFactory:
     ) -> ProductOvernightIndexBasisSwap:
 
         #TODO
-        pass
+        first, second = cls._tokenize_axis1(axis1)
+        bdc = data_convention.business_day_convention
+        holidays = data_convention.holiday_convention
+        effective_date, term_or_termination_date = cls._swap_dates(
+            value_date, first, second, bdc, holidays)
+        return ProductOvernightIndexBasisSwap(
+            effective_date, term_or_termination_date, data_convention.payment_offset,
+            data_convention.index_1_str, data_convention.index_2_str, values,
+            PayOrReceive.from_string(kwargs.get("pay_or_rec", "receive")),
+            kwargs.get("notional", 1e4), data_convention.acc_period_1, data_convention.acc_basis,
+            data_convention.acc_period_2, bdc, holidays, data_convention.compounding_method,
+        )
 
     @classmethod
     def create_fra(cls, value_date, axis1, data_convention, values, **kwargs):
@@ -74,6 +96,15 @@ class ProductFactory:
             kwargs.get("notional", 1e4), data_convention.acc_basis, bdc, holidays,
         )
 
+    @staticmethod
+    def _swap_dates(value_date, first, second, bdc, holidays):
+        """Swap axis1: 'T' (spot start), 'SxT' (start offset x tenor) or 'D1xD2' (explicit dates)."""
+        if second is None:
+            return Date(value_date), first
+        if first.is_term():
+            return add_period(value_date, first.get_term(), bdc, holidays), second
+        return first.get_date(), second
+    
     @staticmethod
     def _tokenize_axis1(axis1):
         tokens = axis1.strip().replace("X", "x").split("x")
